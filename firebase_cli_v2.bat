@@ -43,18 +43,23 @@ if "!CURRENT_COMMAND!" neq "null" (
                 for /f "usebackq delims=" %%c in ("cd_command.txt") do (
                     set "ALL_COMMANDS=!ALL_COMMANDS!%%c & "
                 )
-                set "ALL_COMMANDS=!ALL_COMMANDS!!CURRENT_COMMAND!"
+                if "!CURRENT_COMMAND:~0,3!"=="cd " (
+                    set "ALL_COMMANDS=!ALL_COMMANDS!!CURRENT_COMMAND! & cd"
+                ) else (
+                    set "ALL_COMMANDS=!ALL_COMMANDS!!CURRENT_COMMAND!"
+                )
                 echo [%TIME%] Executing combined commands: !ALL_COMMANDS!
                 cmd /c "!ALL_COMMANDS!" > output.txt 2>&1
-                if /i "!CURRENT_COMMAND:~0,2!"=="cd" (
+                if /i "!CURRENT_COMMAND:~0,3!"=="cd " (
                     echo !CURRENT_COMMAND! >> cd_command.txt
                 )
             ) else (
                 echo [%TIME%] Executing: !CURRENT_COMMAND!
-                if /i "!CURRENT_COMMAND:~0,2!"=="cd" (
+                if /i "!CURRENT_COMMAND:~0,3!"=="cd " (
                     echo !CURRENT_COMMAND! >> cd_command.txt
+                    cmd /c "!CURRENT_COMMAND! & cd" > output.txt 2>&1
                 ) else (
-                    cmd /c "!CURRENT_COMMAND!" >> output.txt 2>&1
+                    cmd /c "!CURRENT_COMMAND!" > output.txt 2>&1
                 )
             )
             

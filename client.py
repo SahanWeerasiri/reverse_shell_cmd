@@ -17,10 +17,9 @@ def send_command(device_id, command):
     
     for _ in range(10):  # Wait 10 seconds max
         response = requests.get(f"{FIREBASE_URL}/commands/{device_id}.json").json() or {}
-        if response.get("output"):
+        if response.get("status") == "completed":
             print("\nOutput:")
-            print(response["output"])
-            requests.patch(f"{FIREBASE_URL}/commands/{device_id}.json", json={"output": None})
+            print(response.get("output", ""))
             return
         time.sleep(1)
     print("No response received")
@@ -51,4 +50,8 @@ while True:
         if command.lower() == 'back':
             break
         if command:
-            send_command(device_id, command)
+            command = command.strip()
+            if command.startswith("cls"):
+                print("\033[H\033[J", end="")
+            else:
+                send_command(device_id, command)

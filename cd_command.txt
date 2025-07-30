@@ -1,6 +1,0 @@
-cd 
-cd .. 
-cd cyber 
-cd .. 
-cd  
-cd 
