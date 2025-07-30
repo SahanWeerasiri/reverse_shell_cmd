@@ -1,1 +1,3 @@
-C:\Users\Sahan\Dark\organized\headless_telebot
+C:\Users\Sahan\Dark\organized\reverse_shell_cmd
+C:\Users\Sahan\Dark\organized
+C:\Users\Sahan\Dark\organized

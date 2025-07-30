@@ -1,2 +1,6 @@
-cd ../headless_telebot 
+cd 
+cd .. 
+cd cyber 
+cd .. 
+cd  
 cd 
