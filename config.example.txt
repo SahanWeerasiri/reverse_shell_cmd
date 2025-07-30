@@ -1,1 +1,0 @@
-https://your-project-id-default-rtdb.firebaseio.com
